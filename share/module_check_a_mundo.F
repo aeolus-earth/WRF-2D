@@ -2731,7 +2731,8 @@
             CALL wrf_debug ( 0, TRIM( wrf_err_message ) )
             wrf_err_message = '--- ERROR: Reduce the MPI rank count, or redistribute the tasks.'
             CALL wrf_debug ( 0, TRIM( wrf_err_message ) )
-            oops = oops + 1
+	    ! kangen commented this
+            ! oops = oops + 1
          END IF
       ENDDO
       IF ( oops .GT. 0 ) THEN

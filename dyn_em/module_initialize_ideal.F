@@ -97,7 +97,12 @@ CONTAINS
 
    INTEGER :: icm,jcm, ii, im1, jj, jm1, loop, error, fid, nxc, nyc, lm
    REAL    :: u_mean,v_mean, f0, p_surf, p_level, qvf, z_at_v, z_at_u
-   REAL    :: z_scale, xrad, yrad, zrad, rad, delt, cof1, cof2
+   REAL    :: z_scale, xrad, yrad, zrad, rad, delt, cof1, cof2 
+   ! kangen variables
+   REAL    :: init_rad
+   LOGICAL :: file_exists
+   namelist /perturb/ init_rad, delt
+   ! end kangen variables
 !   REAL, EXTERNAL :: interp_0
    REAL    :: hm, xa
    REAL    :: pi, rnd
@@ -1092,13 +1097,13 @@ CONTAINS
   write(6,*) ' nxc, nyc for perturbation ',nxc,nyc
   write(6,*) ' delt for perturbation ',delt
 
-  DO J = jts, min(jde-1,jte)
+  do j = jts, min(jde-1,jte)
     yrad = config_flags%dy*float(j-nyc)/10000.
 !   yrad = 0.
-    DO I = its, min(ide-1,ite)
+    do i = its, min(ide-1,ite)
       xrad = config_flags%dx*float(i-nxc)/10000.
 !     xrad = 0.
-      DO K = 1, kte-1
+      do k = 1, kte-1
 
 !  put in preturbation theta (bubble) and recalc density.  note,
 !  the mass in the column is not changing, so when theta changes,
@@ -1107,32 +1112,32 @@ CONTAINS
         zrad = 0.5*(grid%ph_1(i,k,j)+grid%ph_1(i,k+1,j)  &
                    +grid%phb(i,k,j)+grid%phb(i,k+1,j))/g
         zrad = (zrad-1500.)/1500.
-        RAD=SQRT(xrad*xrad+yrad*yrad+zrad*zrad)
-        IF(RAD <= 1.) THEN
-           grid%t_1(i,k,j)=grid%t_1(i,k,j)+delt*COS(.5*PI*RAD)**2
+        rad=sqrt(xrad*xrad+yrad*yrad+zrad*zrad)
+        if(rad <= 1.) then
+           grid%t_1(i,k,j)=grid%t_1(i,k,j)+delt*cos(.5*pi*rad)**2
            grid%t_2(i,k,j)=grid%t_1(i,k,j)
-           qvf = 1. + rvovrd*moist(i,k,j,P_QV)
+           qvf = 1. + rvovrd*moist(i,k,j,p_qv)
            grid%alt(i,k,j) = (r_d/p1000mb)*(grid%t_1(i,k,j)+t0)*qvf* &
                         (((grid%p(i,k,j)+grid%pb(i,k,j))/p1000mb)**cvpm)
            grid%al(i,k,j) = grid%alt(i,k,j) - grid%alb(i,k,j)
-        ENDIF
-      ENDDO
+        endif
+      enddo
 
 !  rebalance hydrostatically
 
-      DO k = 2,kte
+      do k = 2,kte
         grid%ph_1(i,k,j) = grid%ph_1(i,k-1,j) - (grid%dnw(k-1))*(       &
                      ((grid%c1h(k-1)*grid%mub(i,j)+grid%c2h(k-1))+(grid%c1h(k-1)*grid%mu_1(i,j)))*grid%al(i,k-1,j)+ &
                       (grid%c1h(k-1)*grid%mu_1(i,j))*grid%alb(i,k-1,j)  )
 
         grid%ph_2(i,k,j) = grid%ph_1(i,k,j)
         grid%ph0(i,k,j) = grid%ph_1(i,k,j) + grid%phb(i,k,j)
-      ENDDO
+      enddo
 
-    ENDDO
-  ENDDO
-  CASE (squall2d_x)
-!  QSS thermal perturbation to kick off convection
+    enddo
+  enddo
+  case (squall2d_x)
+!  qss thermal perturbation to kick off convection
 
   write(6,*) ' nxc, nyc for perturbation ',nxc,nyc
   write(6,*) ' delt for perturbation ',delt
@@ -1398,7 +1403,7 @@ CONTAINS
         RAD=SQRT(xrad*xrad+yrad*yrad+zrad*zrad)
         IF(RAD <= 1.) THEN
 !          grid%t_1(i,k,j)=grid%t_1(i,k,j)+delt*COS(.5*PI*RAD)**2
-           grid%t_1(i,k,j)=grid%t_1(i,k,j)+ 0.1 *randx
+           grid%t_1(i,k,j)=grid%t_1(i,k,j) !+ 0.1 *randx 
            grid%t_2(i,k,j)=grid%t_1(i,k,j)
            qvf = 1. + rvovrd*moist(i,k,j,P_QV)
            grid%alt(i,k,j) = (r_d/p1000mb)*(grid%t_1(i,k,j)+t0)*qvf* &
@@ -1422,6 +1427,61 @@ CONTAINS
 
     ENDDO
   ENDDO
+! kangen added copying quarter_ss
+  init_rad = 500.
+  delt = 0.1
+  inquire(file="ppe_parameters.nml", exist=file_exists)
+  if (file_exists) then
+    open(unit=114514, file="ppe_parameters.nml", status="old")
+    read(unit=114514, nml=perturb)
+    close(unit=114514)
+  end if
+!  QSS thermal perturbation to kick off convection
+  write(6,*) ' nxc, nyc for perturbation ',nxc,nyc
+  write(6,*) ' initial bubble radius = ', init_rad
+
+  do j = jts, min(jde-1,jte)
+    yrad = config_flags%dy*float(j-nyc)/init_rad
+!   yrad = 0.
+    do i = its, min(ide-1,ite)
+      xrad = config_flags%dx*float(i-nxc)/init_rad
+!     xrad = 0.
+      call random_number (randx)
+      randx = (randx - 0.5) * 2
+      do k = 1, kte-1
+
+!  put in preturbation theta (bubble) and recalc density.  note,
+!  the mass in the column is not changing, so when theta changes,
+!  we recompute density and geopotential
+
+        zrad = 0.5*(grid%ph_1(i,k,j)+grid%ph_1(i,k+1,j)  &
+                   +grid%phb(i,k,j)+grid%phb(i,k+1,j))/g
+        zrad = zrad/init_rad/5.
+        rad=sqrt(xrad*xrad+yrad*yrad+zrad*zrad)
+        if(rad <= 1.) then
+           grid%t_1(i,k,j)=grid%t_1(i,k,j) + (delt + 0.03*randx * 10./config_flags%dx) * cos(.5*pi*rad)**2
+           grid%t_2(i,k,j)=grid%t_1(i,k,j)
+           qvf = 1. + rvovrd*moist(i,k,j,p_qv)
+           grid%alt(i,k,j) = (r_d/p1000mb)*(grid%t_1(i,k,j)+t0)*qvf* &
+                        (((grid%p(i,k,j)+grid%pb(i,k,j))/p1000mb)**cvpm)
+           grid%al(i,k,j) = grid%alt(i,k,j) - grid%alb(i,k,j)
+        endif
+      enddo
+
+!  rebalance hydrostatically
+
+      do k = 2,kte
+        grid%ph_1(i,k,j) = grid%ph_1(i,k-1,j) - (grid%dnw(k-1))*(       &
+                     ((grid%c1h(k-1)*grid%mub(i,j)+grid%c2h(k-1))+(grid%c1h(k-1)*grid%mu_1(i,j)))*grid%al(i,k-1,j)+ &
+                      (grid%c1h(k-1)*grid%mu_1(i,j))*grid%alb(i,k-1,j)  )
+
+        grid%ph_2(i,k,j) = grid%ph_1(i,k,j)
+        grid%ph0(i,k,j) = grid%ph_1(i,k,j) + grid%phb(i,k,j)
+      enddo
+
+    enddo
+  enddo
+! end kangen
 
   END SELECT ideal_pert
 
@@ -1642,6 +1702,22 @@ CONTAINS
          grid%tmn(i,j) = grid%tsk(i,j)-0.5
   ENDDO
   ENDDO
+! kangen
+  do j = jts, min(jde-1,jte)
+    yrad = config_flags%dy*float(j-nyc)/500.
+!   yrad = 0.
+    do i = its, min(ide-1,ite)
+      xrad = config_flags%dx*float(i-nxc)/500.
+!     xrad = 0.
+       rad=sqrt(xrad*xrad+yrad*yrad)
+        if(rad <= 1.) then
+           grid%tsk(i,j)=grid%tsk(i,j)!+1.0*cos(.5*pi*rad)**2
+           grid%tmn(i,j) = grid%tsk(i,j)-0.5
+        endif
+    enddo
+  enddo
+! end kangen
+
 
   END SELECT ideal_surfacet
 

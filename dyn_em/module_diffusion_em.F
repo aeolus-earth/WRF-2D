@@ -6458,7 +6458,7 @@ END SUBROUTINE phy_bc
 
     REAL  &
     :: disp_len, deltas, coefc, tmpdz, len_s, thetasfc,  &
-       thetatop, len_0, tketmp, tmp, ce1, ce2, c_k
+       thetatop, len_0, tketmp, tmp, ce1, ce2, c_k, c_s ! kangen added c_s
 !XZ
     REAL                                                 & 
     :: delxy,coefc_m,pu1
@@ -6466,9 +6466,16 @@ END SUBROUTINE phy_bc
 ! End declarations.
 !-----------------------------------------------------------------------
     c_k = config_flags%c_k
+    c_s = config_flags%c_s ! kangen added c_s
 
-    ce1 = ( c_k / 0.10 ) * 0.19
-    ce2 = max( 0.0 , 0.93 - ce1 )
+! kangen begin
+    ! WRF original
+    ! ce1 = ( c_k / 0.10 ) * 0.19
+    ! ce2 = max( 0.0 , 0.93 - ce1 )
+    ! SAM version
+    ce1 = (c_k**3 / c_s**4) / 0.7 * 0.19
+    ce2 = (c_k**3 / c_s**4) / 0.7 * 0.51
+! kangen end
 
     ktf     = MIN( kte, kde-1 )
     i_start = its

@@ -3007,7 +3007,7 @@ end module module_mp_SBM_Auxiliary
  	INTEGER, PARAMETER, PRIVATE:: R8SIZE = 8
  	INTEGER, PARAMETER, PRIVATE:: R4SIZE = 4
 
-	INTEGER,PARAMETER :: Use_cloud_base_nuc = 1
+	INTEGER,PARAMETER :: Use_cloud_base_nuc = 0 ! kangen modified
 	real(kind=r8size),PARAMETER::T_NUCL_DROP_MIN = -80.0D0
 	real(kind=r8size),PARAMETER::T_NUCL_ICE_MIN = -37.0D0
 ! Ice nucleation method
@@ -3744,6 +3744,11 @@ end module module_mp_SBM_Auxiliary
 		! ... Minimal radii for dry aerosol for the 3 log normal distribution
 	 	real(kind=r8size) ,PARAMETER :: RCCN_MIN_3LN = 0.00048D-4 ! [cm]
 		real(kind=r8size) ,PARAMETER :: PI = 3.14159265D0
+        ! kangen variables
+        logical :: file_exists
+        real(kind=r8size) :: N_m2, amp_factor
+        namelist /ccn/ N_m2
+        ! end kangen
 ! ... Local
 
 	! ... Calculating the CCN radius grid
@@ -3790,6 +3795,20 @@ end module module_mp_SBM_Auxiliary
 
 	ENDIF
 
+    ! kangen perturb aerosol concentration
+    inquire(file="ppe_parameters.nml", exist=file_exists)
+    if (file_exists .and. IType == 1) then
+        open(unit=114514, file="ppe_parameters.nml", status="old")
+        read(unit=114514, nml=ccn)
+        close(unit=114514)
+        amp_factor = N_m2 / ccncon2
+        write (*,*) "CCN amplification factor = ", amp_factor
+        ccncon1 = ccncon1 * amp_factor
+        ccncon2 = ccncon2 * amp_factor
+        ccncon3 = ccncon3 * amp_factor
+    end if
+    ! end kangen
+
 	FCCNR_tmp = 0.0
   CONCCCNIN = 0.0
 
@@ -3828,22 +3847,22 @@ enddo
  ! +----------------------------------------------------------------------------+
   MODULE module_mp_fast_sbm
 
-  USE module_mp_SBM_polar_radar,ONLY:polar_hucm
+!  USE module_mp_SBM_polar_radar,ONLY:polar_hucm
   USE module_mp_SBM_BreakUp,ONLY:Spont_Rain_BreakUp,BreakUp_Snow,KR_SNOW_MIN,KR_SNOW_MAX
   USE module_mp_SBM_Nucleation,ONLY:JERNUCL01_KS, LogNormal_modes_Aerosol
   USE module_mp_SBM_Auxiliary,ONLY:JERRATE_KS,JERTIMESC_KS,JERSUPSAT_KS,  &
                                    JERDFUN_KS,JERDFUN_NEW_KS,POLYSVP,Relaxation_Time
-  USE scatt_tables,ONLY:faf1,fbf1,fab1,fbb1,         &
- 						            faf3,fbf3,fab3,fbb3,         &
-             						faf4,fbf4,fab4,fbb4,         &
-             						faf5,fbf5,fab5,fbb5,         &
-             						LOAD_TABLES,                 &
-             						temps_water,temps_fd,temps_crystals,  &
-             						temps_snow,temps_graupel,temps_hail,  &
-             						fws_fd,fws_crystals,fws_snow,		      &
-             						fws_graupel,fws_hail, 		            &
-             						usetables,                            &
-                         twolayer_hail,twolayer_graupel,twolayer_fd,twolayer_snow,rpquada,usequad
+!  USE scatt_tables,ONLY:faf1,fbf1,fab1,fbb1,         &
+! 						            faf3,fbf3,fab3,fbb3,         &
+!             						faf4,fbf4,fab4,fbb4,         &
+!             						faf5,fbf5,fab5,fbb5,         &
+!             						LOAD_TABLES,                 &
+!             						temps_water,temps_fd,temps_crystals,  &
+!             						temps_snow,temps_graupel,temps_hail,  &
+!             						fws_fd,fws_crystals,fws_snow,		      &
+!             						fws_graupel,fws_hail, 		            &
+!             						usetables,                            &
+!                         twolayer_hail,twolayer_graupel,twolayer_fd,twolayer_snow,rpquada,usequad
 
  PRIVATE
 
@@ -3868,13 +3887,13 @@ enddo
  INTEGER,PARAMETER :: Spont_Rain_BreakUp_On = 1
  LOGICAL,PARAMETER :: CONSERV = .TRUE.
  INTEGER,PARAMETER :: JIWEN_FAN_MELT = 1
- LOGICAL,PARAMETER :: IPolar_HUCM = .TRUE.
+ LOGICAL,PARAMETER :: IPolar_HUCM = .FALSE. ! kangen changed to false
  INTEGER,PARAMETER :: hail_opt = 1
  INTEGER,PARAMETER :: ILogNormal_modes_Aerosol = 1
 
  REAL,PARAMETER :: DX_BOUND = 1433
  REAL(kind=r8size), PARAMETER ::  SCAL = 1.d0
- INTEGER,PARAMETER :: ICEPROCS = 1
+ INTEGER,PARAMETER :: ICEPROCS = 0 ! Kangen: modified from 1 to 0 (no ice proc)
  INTEGER,PARAMETER :: ICETURB = 0, LIQTURB = 0
 
  INTEGER,PARAMETER :: icempl=1,ICEMAX=3,NCD=33,NHYDR=5,NHYDRO=7    &
@@ -3983,7 +4002,7 @@ enddo
  REAL (KIND=R4SIZE) :: FR_LIM(NKR), FRH_LIM(NKR)
 
    CONTAINS
- !-----------------------------------------------------------------------
+  !-----------------------------------------------------------------------
        SUBROUTINE FAST_SBM (w,u,v,th_old,                                &
       &                      chem_new,n_chem,                            &
       &                      itimestep,DT,DX,DY,                         &
@@ -4057,7 +4076,8 @@ enddo
        INTEGER :: I,J,K,KFLIP
        INTEGER :: KRFREEZ
 
-       REAL (KIND=R4SIZE),PARAMETER :: Z0IN=2.0E5,ZMIN=2.0E5
+       !REAL (KIND=R4SIZE),PARAMETER :: Z0IN=2.0E5,ZMIN=2.0E5
+       REAL (KIND=R4SIZE),PARAMETER :: Z0IN=2.0E5,ZMIN=5.0E4 ! kangen
 
        REAL (KIND=R4SIZE) :: EPSF2D, &
       &        TAUR1,TAUR2,EPS_R1,EPS_R2,ANC1IN, &
@@ -4284,10 +4304,10 @@ enddo
  					KRR = KRR + 1
    					if (xland(i,j) == 1)then
    						! chem_new(I,K,J,KR)=FCCNR_CON(KRR)*FACTZ
-   						chem_new(I,K,J,KR) = (FCCNR_CON(KRR)/rhoair_max)*rhocgs(i,k,j) ! ... distributed vertically as [#/g]
+   						chem_new(I,K,J,KR) = FACTZ * (FCCNR_CON(KRR)/rhoair_max)*rhocgs(i,k,j) ! ... distributed vertically as [#/g]
              else
               ! chem_new(I,K,J,KR)=FCCNR_MAR(KRR)*FACTZ
-   						chem_new(I,K,J,KR) = (FCCNR_MAR(KRR)/rhoair_max)*rhocgs(i,k,j) ! ... distributed vertically as [#/g]
+   						chem_new(I,K,J,KR) = FACTZ * (FCCNR_MAR(KRR)/rhoair_max)*rhocgs(i,k,j) ! ... distributed vertically as [#/g]
    					endif
  				  END DO
  				endif
@@ -4301,7 +4321,8 @@ enddo
  !    (for 3D application running with MPI)   
  ! +--------------------------------------------+
 #if (defined(DM_PARALLEL))
-    if (itimestep > 1 .and. domain_id == 1)then
+! kangen disabled aerosol boundary condition for double-periodic condition
+    if (.false. .and. itimestep > 1 .and. domain_id == 1)then
         DO j = jts,jte
          DO k = kts,kte
            DO i = its,ite
@@ -4320,10 +4341,10 @@ enddo
                       KRR = KRR + 1
            						if (xland(i,j) == 1)then
            							! chem_new(I,K,J,KR)=FCCNR_CON(KRR)*FACTZ
-           							chem_new(I,K,J,KR) = (FCCNR_CON(KRR)/rhoair_max)*rhocgs(i,k,j)
+           							chem_new(I,K,J,KR) = FACTZ * (FCCNR_CON(KRR)/rhoair_max)*rhocgs(i,k,j)
                        else
                         ! chem_new(I,K,J,KR)=FCCNR_MAR(KRR)*FACTZ
-           							chem_new(I,K,J,KR) = (FCCNR_MAR(KRR)/rhoair_max)*rhocgs(i,k,j)
+           							chem_new(I,K,J,KR) = FACTZ * (FCCNR_MAR(KRR)/rhoair_max)*rhocgs(i,k,j)
            						endif
                    END DO
 	               endif
@@ -4593,7 +4614,8 @@ enddo
               DEL2AD=EW1N/ES2N-1.
               SUP2_OLD=DEL2IN
 
-              IF(del1ad > 0.0 .or. del2ad > 0.0 .or. (sum(FF1R)+sum(FF3R)+sum(FF4R)+sum(FF5R)) > 1.0e-20)THEN
+! kangen changed the threshold to sum(FF..) > 1e-30
+              IF(del1ad > 0.0 .or. del2ad > 0.0 .or. (sum(FF1R)+sum(FF3R)+sum(FF4R)+sum(FF5R)) > 1.0e-30)THEN
                 ! JacobS: commented for this version                
                 !                CALL Relaxation_Time(TT,QQ,PP,rhocgs(I,K,J),DEL1IN,DEL2IN, &
                 !                                      XL,VR1_Z(:,K),FF1R,RLEC,RO1BL, &
@@ -4606,8 +4628,8 @@ enddo
                   DELSUP2=(DEL2AD-DEL2IN)/NCOND
                   DELDIV1=(DIV3-DIV1)/NCOND
                   DELDIV2=(DIV4-DIV2)/NCOND
-                  DELTATEMP = 0
-                  DELTAQ = 0
+                  DELTATEMP = (TTA - TT) / NCOND ! kangen added
+                  DELTAQ = (QQA - QQ) / NCOND    ! kangen added
                   tt_old = TT
                   qq_old = qq
                   DIFFU=1
@@ -4617,15 +4639,22 @@ enddo
 
                   DTNEW = 0.0
                   DO IKL=1,NCOND
-                    DTCOND = min(DT-DTNEW,DTCOND)
-                    DTNEW = DTNEW + DTCOND
+			    DTCOND = min(DT-DTNEW,DTCOND)
+			    DTNEW = DTNEW + DTCOND
 
                     IF (DIFFU.NE.0)THEN
                       IF (DIFFU.NE.0)THEN
-                          DEL1IN = DEL1IN+DELSUP1
-                          DEL2IN = DEL2IN+DELSUP2
-                          DIV1 = DIV1+DELDIV1
-                          DIV2 = DIV2+DELDIV2
+			! kangen added to cover the above code
+			TT = TT + DELTATEMP
+			QQ = QQ + DELTAQ
+	                ES1N = AA1_MY*DEXP(-BB1_MY/TT)
+                        ES2N = AA2_MY*DEXP(-BB2_MY/TT)
+                        EW1N=QQ*PP/(0.622+0.378*QQ)
+                        DIV1=EW1N/ES1N
+                        DEL1IN=EW1N/ES1N-1.
+                        DIV2=EW1N/ES2N
+                        DEL2IN=EW1N/ES2N-1.
+			! end kangen
                       END IF
                       IF (DIV1.GT.DIV2.AND.TT.LE.265)THEN
                         DIFFU=0
@@ -4637,11 +4666,13 @@ enddo
                         IF (DEL2NR.EQ.0)print*,'div1,div2 = ',div1,div2
                         IF (DEL2NR.EQ.0)print*,'i,j,k = ',i,j,k
                         IF (DEL2NR.EQ.0)call wrf_error_fatal("fatal error in module_mp_fast_sbm (DEL2NR.EQ.0) , model stop ")
-                        DEL12R=DEL1NR/DEL2NR
-                        DEL12RD=DEL12R**DEL_BBR
-                        EW1PN=AA1_MY*100.*DIV1*DEL12RD/100.
-                        TT=-DEL_BB/DLOG(DEL12R)
-                        QQ=0.622*EW1PN/(PP-0.378*EW1PN)
+			! kangen commented
+                        ! DEL12R=DEL1NR/DEL2NR
+                        ! DEL12RD=DEL12R**DEL_BBR
+                        ! EW1PN=AA1_MY*100.*DIV1*DEL12RD/100.
+                        ! TT=-DEL_BB/DLOG(DEL12R)
+                        ! QQ=0.622*EW1PN/(PP-0.378*EW1PN)
+
 
                         IF(DEL1IN > 0.0 .OR. DEL2IN > 0.0)THEN
 ! +------------------------------------------+
@@ -4701,23 +4732,11 @@ enddo
                           END DO
                         END DO
                       ISYM1=0
-                      ISYM2=0
-                      ISYM3=0
-                      ISYM4=0
-                      ISYM5=0
                       IF(FMAX1 > 0)ISYM1 = 1
-                      IF (ICEPROCS == 1)THEN
-                        IF(FMAX2(1) > 1.E-10)ISYM2(1) = 1
-                        IF(FMAX2(2) > 1.E-10)ISYM2(2) = 1
-                        IF(FMAX2(3) > 1.E-10)ISYM2(3) = 1
-                        IF(FMAX3 > 1.E-10)ISYM3 = 1
-                        IF(FMAX4 > 1.E-10)ISYM4 = 1
-                        IF(FMAX5 > 1.E-10)ISYM5 = 1
-                      END IF
 
-                      IF(ISYM1==1 .AND. ((TT-273.15)>-0.187 .OR.(sum(ISYM2)==0 .AND. &
-                          ISYM3==0 .AND. ISYM4==0 .AND. ISYM5==0)))THEN
+                   ! kangen commented the condition which T > 0 degC
 
+			IF (ISYM1 == 1) THEN
                           ! ... only warm phase
                           CALL ONECOND1(TT,QQ,PP,rhocgs(I,K,J) &
                                         ,VR1_Z(:,K),pcgs(I,K,J) &
@@ -4728,47 +4747,12 @@ enddo
                                         ,COL,DTCOND,ICEMAX,NKR,ISYM1 &
                                         ,ISYM2,ISYM3,ISYM4,ISYM5,I,J,K,W(i,k,j),DX,Itimestep)
 
-                        ELSE IF(ISYM1==0 .AND. (TT-273.15)<-0.187 .AND. &
-                                (sum(ISYM2)>1 .OR. ISYM3==1 .OR. ISYM4==1 .OR. ISYM5==1))THEN
-                                  !IF (TT.GT.213.15)THEN
-                                    VR2_Z(:,1) = VR2_ZC(:,K)
-                                    VR2_Z(:,2) = VR2_ZP(:,K)
-                                    VR2_Z(:,3) = VR2_ZD(:,K)
-                                    CALL ONECOND2(TT,QQ,PP,rhocgs(I,K,J) &
-                                    ,VR2_Z,VR3_Z(:,K),VR4_Z(:,K),VR5_Z(:,K),pcgs(I,K,J) &
-                                    ,DEL1IN,DEL2IN,DIV1,DIV2 &
-                                    ,FF2R,FF2IN,XI,RIEC,RO2BL &
-                                    ,FF3R,FF3IN,XS,RSEC,RO3BL &
-                                    ,FF4R,FF4IN,XG,RGEC,RO4BL &
-                                    ,FF5R,FF5IN,XH,RHEC,RO5BL &
-                                    ,AA1_MY,BB1_MY,AA2_MY,BB2_MY &
-                                    ,C1_MEY,C2_MEY &
-                                    ,COL,DTCOND,ICEMAX,NKR &
-                                    ,ISYM1,ISYM2,ISYM3,ISYM4,ISYM5,I,J,K,W(i,k,j),DX,Itimestep)
-                                !END IF
-                          ELSE IF(ISYM1==1 .AND. (TT-273.15)<-0.187 .AND. &
-                              (sum(ISYM2)>1 .OR. ISYM3==1 .OR. ISYM4==1 .OR. ISYM5==1))THEN
-                              IF (TT > 233.15)THEN
-                                VR2_Z(:,1) = VR2_ZC(:,K)
-                                VR2_Z(:,2) = VR2_ZP(:,K)
-                                VR2_Z(:,3) = VR2_ZD(:,K)
-                                CALL ONECOND3(TT,QQ,PP,rhocgs(I,K,J) &
-                                ,VR1_Z(:,K),VR2_Z,VR3_Z(:,K),VR4_Z(:,K),VR5_Z(:,K),pcgs(I,K,J) &
-                                ,DEL1IN,DEL2IN,DIV1,DIV2 &
-                                ,FF1R,FF1IN,XL,RLEC,RO1BL &
-                                ,FF2R,FF2IN,XI,RIEC,RO2BL &
-                                ,FF3R,FF3IN,XS,RSEC,RO3BL &
-                                ,FF4R,FF4IN,XG,RGEC,RO4BL &
-                                ,FF5R,FF5IN,XH,RHEC,RO5BL &
-                                ,AA1_MY,BB1_MY,AA2_MY,BB2_MY &
-                                ,C1_MEY,C2_MEY &
-                                ,COL,DTCOND,ICEMAX,NKR &
-                                ,ISYM1,ISYM2,ISYM3,ISYM4,ISYM5,I,J,K,W(i,k,j),DX,Itimestep)
-                              ENDIF
                             END IF
                           END IF ! DIFF.NE.0
                       END IF ! DIFFU.NE.0
                   END DO ! NCOND - end of NCOND loop
+
+
 ! +----------------------------------+
 ! Collision-Coallescnce
 ! +----------------------------------+
@@ -4790,7 +4774,8 @@ enddo
                                    
                   T_new(i,k,j) = tt
                   qv(i,k,j) = qq
-                   
+
+                 
             ! in case Sw,Si,mass  
             ENDIF 
         ! in case T_OLD(I,K,J).GT.213.15
@@ -4850,6 +4835,8 @@ enddo
  						FF3R(KR) = FF3R_D(KR)
  					END DO
  		END IF
+
+
 
     ! Update temperature at the end of MP
   	th_phy(i,k,j) = t_new(i,k,j)/pi_phy(i,k,j)
@@ -5129,142 +5116,142 @@ enddo
 ! ..........................................
 ! ... Polarimetric Forward Radar Operator
 ! ..........................................
-  if ( PRESENT (diagflag) ) then
-    if( diagflag .and. IPolar_HUCM .and. (sbm_diagnostics==1) ) then
-
-      dx_dbl = dx
-      dy_dbl = dy
-      do k = kts,kte
-      zmks_1d(k) = zcgs(i,k,j)*0.01
-      end do
-      DIST_SING = ((i-ide/2)**2+(j-jde/2)**2)**(0.5)
-      DISTANCE = 1.D5
-
-      do k=kts,kte
-        FF2R_d = 0.0 	 	
-        FLIQFR_SD = 0.0
-        FLIQFR_GD = 0.0
-        FLIQFR_HD = 0.0
-        FF1_FD = 0.0
-        FL1_FD = 0.0
-        BKDEN_Snow(:) = RO3BL(:)
-        RO2BL_D(:,:) = RO2BL(:,:)
-        RO2BL_D(:,:) = RO2BL(:,:)
-
-! ... Drops
-        KRR=0
-        do kr = p_ff1i01,p_ff1i33 
-          KRR=KRR+1
-          FF1R_D(KRR) = (1./RHOCGS(I,K,J))*chem_new(I,K,J,KR)*XL(KRR)*XL(KRR)*3.0
-          if (FF1R_D(KRR) < 1.0D-20) FF1R_D(KRR) = 0.0
-        end do
-        if (ICEPROCS == 1)then
-! ... SNOW
-          KRR=0
-          do kr=p_ff5i01,p_ff5i33
-            KRR=KRR+1
-            FF3R_D(KRR)=(1./RHOCGS(I,K,J))*chem_new(I,K,J,KR)*XS(KRR)*XS(KRR)*3.0
-            FF3R (KRR) = chem_new(I,K,J,KR)
-            if (ff3r_D(krr) < 1.0D-20) ff3r_D(krr) = 0.0
-          end do
-! ... Graupel or Hail
-          KRR=0
-          if(hail_opt == 0)then
-            do kr = p_ff6i01,p_ff6i33
-              KRR=KRR+1
-              FF4R_D(KRR) = (1./RHOCGS(I,K,J))*chem_new(I,K,J,KR)*XG(KRR)*XG(KRR)*3.0
-              FF4R(KRR) = chem_new(I,K,J,KR)
-              if (FF4R_D(KRR) < 1.0D-20) FF4R_D(KRR)= 0.0
-              FF5R_d(KRR) = 0.0
-            end do
-          else
-            do kr=p_ff6i01,p_ff6i33
-              KRR=KRR+1
-              FF5R_D(KRR)=(1./RHOCGS(I,K,J))*chem_new(I,K,J,KR)*XH(KRR)*XH(KRR)*3.0
-              FF5R(KRR)=chem_new(I,K,J,KR)
-              if (ff5r_d(krr) < 1.0D-20) ff5r_d(krr)=0.0
-              FF4R_d(KRR) = 0.0
-            end do
-          endif
-        ! in caseICEPROCS.EQ.1
-        end if
-
-        rhocgs_d = rhocgs(I,K,J)
-        T_NEW_D = T_NEW(I,K,J)
-
-        IWL = 1
-        ICLOUD = 0
-
- 			  CALL polar_hucm &
-                 				(FF1R_D, FF2R_D, FF3R_D, FF4R_D, FF5R_D, FF1_FD, 		    &
-                 				FLIQFR_SD, FLIQFR_GD, FLIQFR_HD, FL1_FD, 				        &
-                 				BKDEN_Snow, T_NEW_D, rhocgs_D, wavelength, iwl,         &
-                 				distance, dx_dbl, dy_dbl, zmks_1d, 					            &
-                 				out1, out2, out3, out4, out5, out6, out7, out8, out9,   &
-                 				bin_mass, tab_colum, tab_dendr, tab_snow, bin_log, 		  &
-                 				ijk, i, j, k, kts, kte, NKR, ICEMAX, icloud, itimestep, &
-                 				faf1,fbf1,fab1,fbb1, 									    &
-                 				faf3,fbf3,fab3,fbb3,         							&
-                 				faf4,fbf4,fab4,fbb4,         							&
-                 				faf5,fbf5,fab5,fbb5,         							&
-                 				temps_water,temps_fd,temps_crystals,  	  &
-                 				temps_snow,temps_graupel,temps_hail,  		&
-                 				fws_fd,fws_crystals,fws_snow,		  				&
-                 				fws_graupel,fws_hail,usetables)
-
-
-   			KRR=0
-   			DO KR=r_p_ff1i01,r_p_ff1i06
-   				KRR=KRR+1
-   				sbmradar(I,K,J,KR) = out1(KRR)
-   			END DO
-   			KRR=0
-   			DO KR=r_p_ff2i01,r_p_ff2i06
-   				KRR=KRR+1
-   				sbmradar(I,K,J,KR)=out2(KRR)
-   			END DO
-   			KRR=0
-   			DO KR=r_p_ff3i01,r_p_ff3i06
-   				KRR=KRR+1
-   				sbmradar(I,K,J,KR)=out3(KRR)
-   			END DO
-   			KRR=0
-   			DO KR=r_p_ff4i01,r_p_ff4i06
-   				KRR=KRR+1
-   				sbmradar(I,K,J,KR)=out4(KRR)
-   			END DO
-   			KRR=0
-   			DO KR=r_p_ff5i01,r_p_ff5i06
-   				KRR=KRR+1
-   				sbmradar(I,K,J,KR)=out5(KRR)
-   			END DO
-   			KRR=0
-   			DO KR=r_p_ff6i01,r_p_ff6i06
-   				KRR=KRR+1
-   				sbmradar(I,K,J,KR)=out6(KRR)
-   			END DO
-   			KRR=0
-   			DO KR=r_p_ff7i01,r_p_ff7i06
-   				KRR=KRR+1
-   				sbmradar(I,K,J,KR)=out7(KRR)
-   			END DO
-   			KRR=0
-   			DO KR=r_p_ff8i01,r_p_ff8i06
-   				KRR=KRR+1
-   				sbmradar(I,K,J,KR)=out8(KRR)
-   			END DO
-   			KRR=0
-   			DO KR=r_p_ff9i01,r_p_ff9i06
-   				KRR=KRR+1
-   				sbmradar(I,K,J,KR)=out9(KRR)
-   			END DO
-
- 		 ! cycle by K
- 		 end do
- 		! diagflag .and. IPolar_HUCM
- 		endif
- 	! PRESENT(diagflag)
- 	endif
+!  if ( PRESENT (diagflag) ) then
+!    if( diagflag .and. IPolar_HUCM .and. (sbm_diagnostics==1) ) then
+!
+!      dx_dbl = dx
+!      dy_dbl = dy
+!      do k = kts,kte
+!      zmks_1d(k) = zcgs(i,k,j)*0.01
+!      end do
+!      DIST_SING = ((i-ide/2)**2+(j-jde/2)**2)**(0.5)
+!      DISTANCE = 1.D5
+!
+!      do k=kts,kte
+!        FF2R_d = 0.0 	 	
+!        FLIQFR_SD = 0.0
+!        FLIQFR_GD = 0.0
+!        FLIQFR_HD = 0.0
+!        FF1_FD = 0.0
+!        FL1_FD = 0.0
+!        BKDEN_Snow(:) = RO3BL(:)
+!        RO2BL_D(:,:) = RO2BL(:,:)
+!        RO2BL_D(:,:) = RO2BL(:,:)
+!
+!! ... Drops
+!        KRR=0
+!        do kr = p_ff1i01,p_ff1i33 
+!          KRR=KRR+1
+!          FF1R_D(KRR) = (1./RHOCGS(I,K,J))*chem_new(I,K,J,KR)*XL(KRR)*XL(KRR)*3.0
+!          if (FF1R_D(KRR) < 1.0D-20) FF1R_D(KRR) = 0.0
+!        end do
+!        if (ICEPROCS == 1)then
+!! ... SNOW
+!          KRR=0
+!          do kr=p_ff5i01,p_ff5i33
+!            KRR=KRR+1
+!            FF3R_D(KRR)=(1./RHOCGS(I,K,J))*chem_new(I,K,J,KR)*XS(KRR)*XS(KRR)*3.0
+!            FF3R (KRR) = chem_new(I,K,J,KR)
+!            if (ff3r_D(krr) < 1.0D-20) ff3r_D(krr) = 0.0
+!          end do
+!! ... Graupel or Hail
+!          KRR=0
+!          if(hail_opt == 0)then
+!            do kr = p_ff6i01,p_ff6i33
+!              KRR=KRR+1
+!              FF4R_D(KRR) = (1./RHOCGS(I,K,J))*chem_new(I,K,J,KR)*XG(KRR)*XG(KRR)*3.0
+!              FF4R(KRR) = chem_new(I,K,J,KR)
+!              if (FF4R_D(KRR) < 1.0D-20) FF4R_D(KRR)= 0.0
+!              FF5R_d(KRR) = 0.0
+!            end do
+!          else
+!            do kr=p_ff6i01,p_ff6i33
+!              KRR=KRR+1
+!              FF5R_D(KRR)=(1./RHOCGS(I,K,J))*chem_new(I,K,J,KR)*XH(KRR)*XH(KRR)*3.0
+!              FF5R(KRR)=chem_new(I,K,J,KR)
+!              if (ff5r_d(krr) < 1.0D-20) ff5r_d(krr)=0.0
+!              FF4R_d(KRR) = 0.0
+!            end do
+!          endif
+!        ! in caseICEPROCS.EQ.1
+!        end if
+!
+!        rhocgs_d = rhocgs(I,K,J)
+!        T_NEW_D = T_NEW(I,K,J)
+!
+!        IWL = 1
+!        ICLOUD = 0
+!
+! 			  CALL polar_hucm &
+!                 				(FF1R_D, FF2R_D, FF3R_D, FF4R_D, FF5R_D, FF1_FD, 		    &
+!                 				FLIQFR_SD, FLIQFR_GD, FLIQFR_HD, FL1_FD, 				        &
+!                 				BKDEN_Snow, T_NEW_D, rhocgs_D, wavelength, iwl,         &
+!                 				distance, dx_dbl, dy_dbl, zmks_1d, 					            &
+!                 				out1, out2, out3, out4, out5, out6, out7, out8, out9,   &
+!                 				bin_mass, tab_colum, tab_dendr, tab_snow, bin_log, 		  &
+!                 				ijk, i, j, k, kts, kte, NKR, ICEMAX, icloud, itimestep, &
+!                 				faf1,fbf1,fab1,fbb1, 									    &
+!                 				faf3,fbf3,fab3,fbb3,         							&
+!                 				faf4,fbf4,fab4,fbb4,         							&
+!                 				faf5,fbf5,fab5,fbb5,         							&
+!                 				temps_water,temps_fd,temps_crystals,  	  &
+!                 				temps_snow,temps_graupel,temps_hail,  		&
+!                 				fws_fd,fws_crystals,fws_snow,		  				&
+!                 				fws_graupel,fws_hail,usetables)
+!
+!
+!   			KRR=0
+!   			DO KR=r_p_ff1i01,r_p_ff1i06
+!   				KRR=KRR+1
+!   				sbmradar(I,K,J,KR) = out1(KRR)
+!   			END DO
+!   			KRR=0
+!   			DO KR=r_p_ff2i01,r_p_ff2i06
+!   				KRR=KRR+1
+!   				sbmradar(I,K,J,KR)=out2(KRR)
+!   			END DO
+!   			KRR=0
+!   			DO KR=r_p_ff3i01,r_p_ff3i06
+!   				KRR=KRR+1
+!   				sbmradar(I,K,J,KR)=out3(KRR)
+!   			END DO
+!   			KRR=0
+!   			DO KR=r_p_ff4i01,r_p_ff4i06
+!   				KRR=KRR+1
+!   				sbmradar(I,K,J,KR)=out4(KRR)
+!   			END DO
+!   			KRR=0
+!   			DO KR=r_p_ff5i01,r_p_ff5i06
+!   				KRR=KRR+1
+!   				sbmradar(I,K,J,KR)=out5(KRR)
+!   			END DO
+!   			KRR=0
+!   			DO KR=r_p_ff6i01,r_p_ff6i06
+!   				KRR=KRR+1
+!   				sbmradar(I,K,J,KR)=out6(KRR)
+!   			END DO
+!   			KRR=0
+!   			DO KR=r_p_ff7i01,r_p_ff7i06
+!   				KRR=KRR+1
+!   				sbmradar(I,K,J,KR)=out7(KRR)
+!   			END DO
+!   			KRR=0
+!   			DO KR=r_p_ff8i01,r_p_ff8i06
+!   				KRR=KRR+1
+!   				sbmradar(I,K,J,KR)=out8(KRR)
+!   			END DO
+!   			KRR=0
+!   			DO KR=r_p_ff9i01,r_p_ff9i06
+!   				KRR=KRR+1
+!   				sbmradar(I,K,J,KR)=out9(KRR)
+!   			END DO
+!
+! 		 ! cycle by K
+! 		 end do
+! 		! diagflag .and. IPolar_HUCM
+! 		endif
+! 	! PRESENT(diagflag)
+! 	endif
 
    ! cycle by I
    END DO
@@ -5324,6 +5311,7 @@ enddo
  		         END DO
  		        END DO
        END IF
+
 
    RETURN
    END SUBROUTINE FAST_SBM
@@ -6048,34 +6036,34 @@ enddo
  ! LookUpTable #10
  ! Polar-HUCM Scattering Amplitudes Look-up table :
  ! +-----------------------------------------------------------------------+
-  CALL LOAD_TABLES(NKR)  ! (KS) - Loading the scattering look-up-table
-
- ! ... (KS) - Broadcating Liquid drops
-#if (defined(DM_PARALLEL))
-   	DM_BCAST_MACRO_R16(FAF1)
-   	DM_BCAST_MACRO_R16(FBF1)
-   	DM_BCAST_MACRO_R16(FAB1)
-   	DM_BCAST_MACRO_R16(FBB1)
-   ! ... (KS) - Broadcating Snow
-   	DM_BCAST_MACRO_R16(FAF3)
-   	DM_BCAST_MACRO_R16(FBF3)
-   	DM_BCAST_MACRO_R16(FAB3)
-   	DM_BCAST_MACRO_R16(FBB3)
-   ! ... (KS) - Broadcating Graupel
-   	DM_BCAST_MACRO_R16(FAF4)
-   	DM_BCAST_MACRO_R16(FBF4)
-   	DM_BCAST_MACRO_R16(FAB4)
-   	DM_BCAST_MACRO_R16(FBB4)
-   ! ### (KS) - Broadcating Hail
-   	DM_BCAST_MACRO_R16(FAF5)
-   	DM_BCAST_MACRO_R16(FBF5)
-   	DM_BCAST_MACRO_R16(FAB5)
-   	DM_BCAST_MACRO_R16(FBB5)
- ! ### (KS) - Broadcating Usetables array
- 	  CALL wrf_dm_bcast_integer ( usetables , size ( usetables ) * IWORDSIZE )
-#endif
-  WRITE(errmess, '(A,I2)') 'module_mp_WRFsbm : succesfull reading Table-10'
-  call wrf_message(errmess)
+!  CALL LOAD_TABLES(NKR)  ! (KS) - Loading the scattering look-up-table
+!
+! ! ... (KS) - Broadcating Liquid drops
+!#if (defined(DM_PARALLEL))
+!   	DM_BCAST_MACRO_R16(FAF1)
+!   	DM_BCAST_MACRO_R16(FBF1)
+!   	DM_BCAST_MACRO_R16(FAB1)
+!   	DM_BCAST_MACRO_R16(FBB1)
+!   ! ... (KS) - Broadcating Snow
+!   	DM_BCAST_MACRO_R16(FAF3)
+!   	DM_BCAST_MACRO_R16(FBF3)
+!   	DM_BCAST_MACRO_R16(FAB3)
+!   	DM_BCAST_MACRO_R16(FBB3)
+!   ! ... (KS) - Broadcating Graupel
+!   	DM_BCAST_MACRO_R16(FAF4)
+!   	DM_BCAST_MACRO_R16(FBF4)
+!   	DM_BCAST_MACRO_R16(FAB4)
+!   	DM_BCAST_MACRO_R16(FBB4)
+!   ! ### (KS) - Broadcating Hail
+!   	DM_BCAST_MACRO_R16(FAF5)
+!   	DM_BCAST_MACRO_R16(FBF5)
+!   	DM_BCAST_MACRO_R16(FAB5)
+!   	DM_BCAST_MACRO_R16(FBB5)
+! ! ### (KS) - Broadcating Usetables array
+! 	  CALL wrf_dm_bcast_integer ( usetables , size ( usetables ) * IWORDSIZE )
+!#endif
+!  WRITE(errmess, '(A,I2)') 'module_mp_WRFsbm : succesfull reading Table-10'
+!  call wrf_message(errmess)
  ! +-----------------------------------------------------------------------+
 
  ! calculation of the mass(in mg) for categories boundaries :
@@ -8411,7 +8399,9 @@ enddo
     icol_dendrite=0
     t_new = tt
 
-    PP_r = PP
+    ! kangen changed P to be constant = 900 hPa
+    ! PP_r = PP
+    PP_r = 0.90e6
     call Kernals_KS(dt_coll,nkr,PP_r)
     !CALL MODKRN_KS(TT,QQ,PP,RHO,PRDKRN,TTCOAL,1,1,Iin,Jin,Kin)
     CALL MODKRN_KS(TT,QQ,PP,RHO,PRDKRN,TTCOAL,11,1,Iin,Jin,Kin)

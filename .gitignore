@@ -17,3 +17,6 @@
 configure.wrf*
 *.backup
 *.f90
+__pycache__
+/test/ensemble/run*
+/test/ensemble/*.pkl
