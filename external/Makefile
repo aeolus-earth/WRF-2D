@@ -15,5 +15,6 @@ superclean :
 	@( cd RSL_LITE ; make -s superclean )
 	@( cd fftpack/fftpack5 ; make -s superclean )
 	@( cd atm_ocn ; make -s superclean )
+	@( cd fast_sbm_ml ; make -s superclean )
 
 

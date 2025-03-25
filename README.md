@@ -4,7 +4,7 @@
 
 ## Model description
 
-This model is modified to run a perturbed parameter ensemble of 2D idealized LES simulations for single marine shallow cumulus clouds.
+This model is modified to run a perturbed parameter ensemble of 2D idealized LES simulations for single marine shallow cumulus clouds modified to use a machine learning module for the sbm-fast.
 
 The current model is based on the [WRF v4.3 release](https://github.com/wrf-model/WRF/tree/v4.3).
 
@@ -31,24 +31,38 @@ The WRF Model is open-source code in the public domain, and its use is unrestric
 ## Run the model
 
 ### Setting up WRF
+See this [link](https://forum.mmm.ucar.edu/threads/full-wrf-and-wps-installation-example-gnu.12385/) for help downloading any necessary packages
 
 ```shell
 # choose the corresponding compiler
 ./configure
 
-# compile WRF-LES
-./compile em_les
+# edit the LIB_EXTERNAL variable in configure.wrf to include the c++ library
+# example adding `-L/usr/lib/x86_64-linux-gnu/hdf5/serial $(WRF_SRC_ROOT_DIR)/external/fast_sbm_ml/build/libc_fast_sbm_ml.a \
+# /lib/x86_64-linux-gnu/libstdc++.so.6 -L/teamspace/studios/this_studio/libtorch/lib -ltorch_cpu -lc10`
+vim configure.wrf
 
 # extract files needed for SBM
 cd run/
 tar -xvzf sbm_files.tar.gz
 cd ..
+
+# set env variable for building the cpp library
+export LIBTORCH="/teamspace/studios/this_studio/libtorch"
+
+# compiles and runs the ensemble test
+# Modify test/ensemble/script.sh to do more/less tests
+./compile
 ```
 
-### Run LES ensemble
+### Running the compiled executable
 
 ```shell
-cd test/ensemble
-sh ./script.sh
-```
+# required for running ideal.exe and wrf.exe if libtorch 
+# is not LD_LIBRARY_PATH already (e.g. Download using wget instead of package manager)
+export LD_LIBRARY_PATH=/path/to/libtorch/lib:$LD_LIBRARY_PATH
 
+# run script.sh in enesemble
+cd test/ensemble
+./script.sh
+```
