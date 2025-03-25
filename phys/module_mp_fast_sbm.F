@@ -1,4 +1,4 @@
-#if( BUILD_SBM_FAST == 1)
+#if( BUILD_SBM_FAST != 1)
       MODULE module_mp_fast_sbm
       CONTAINS
       SUBROUTINE SBM_fast
