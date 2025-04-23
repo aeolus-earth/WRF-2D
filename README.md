@@ -38,8 +38,7 @@ See this [link](https://forum.mmm.ucar.edu/threads/full-wrf-and-wps-installation
 ./configure
 
 # edit the LIB_EXTERNAL variable in configure.wrf to include the c++ library
-# example adding `-L/usr/lib/x86_64-linux-gnu/hdf5/serial $(WRF_SRC_ROOT_DIR)/external/fast_sbm_ml/build/libc_fast_sbm_ml.a \
-# /lib/x86_64-linux-gnu/libstdc++.so.6 -L/teamspace/studios/this_studio/libtorch/lib -ltorch_cpu -lc10`
+# example adding `-L/usr/lib/x86_64-linux-gnu/hdf5/serial /path/to/pysbm/pysbm/python/libsbm_ml_impl.so` worked on lightning
 vim configure.wrf
 
 # extract files needed for SBM
@@ -47,11 +46,7 @@ cd run/
 tar -xvzf sbm_files.tar.gz
 cd ..
 
-# set env variable for building the cpp library
-export LIBTORCH="/teamspace/studios/this_studio/libtorch"
-
-# compiles and runs the ensemble test
-# Modify test/ensemble/script.sh to do more/less tests
+# compiles the code
 ./compile
 ```
 
@@ -60,9 +55,11 @@ export LIBTORCH="/teamspace/studios/this_studio/libtorch"
 ```shell
 # required for running ideal.exe and wrf.exe if libtorch 
 # is not LD_LIBRARY_PATH already (e.g. Download using wget instead of package manager)
-export LD_LIBRARY_PATH=/path/to/libtorch/lib:$LD_LIBRARY_PATH
+# We should be able to modify flags to avoid needing this but for now, we can keep it
+export LD_LIBRARY_PATH=/path/to/pysbm/pysbm/python:$LD_LIBRARY_PATH
 
 # run script.sh in enesemble
+# Modify script to do more/less tests
 cd test/ensemble
 ./script.sh
 ```
