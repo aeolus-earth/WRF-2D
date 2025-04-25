@@ -30,6 +30,15 @@ The WRF Model is open-source code in the public domain, and its use is unrestric
 
 ## Run the model
 
+### Setting up pysbm
+
+```shell
+git clone git@github.com:aeolus-earth/pysbm.git
+# look at readme to build it afterwards
+```
+
+There should be a number of resulting .so files in the pysbm/python directory. libsbm_ml_impl.so is the so file we are interested in.
+
 ### Setting up WRF
 See this [link](https://forum.mmm.ucar.edu/threads/full-wrf-and-wps-installation-example-gnu.12385/) for help downloading any necessary packages
 
@@ -38,8 +47,7 @@ See this [link](https://forum.mmm.ucar.edu/threads/full-wrf-and-wps-installation
 ./configure
 
 # edit the LIB_EXTERNAL variable in configure.wrf to include the c++ library
-# example adding `-L/usr/lib/x86_64-linux-gnu/hdf5/serial $(WRF_SRC_ROOT_DIR)/external/fast_sbm_ml/build/libc_fast_sbm_ml.a \
-# /lib/x86_64-linux-gnu/libstdc++.so.6 -L/teamspace/studios/this_studio/libtorch/lib -ltorch_cpu -lc10`
+# example adding `-L/usr/lib/x86_64-linux-gnu/hdf5/serial /path/to/pysbm/pysbm/python/libsbm_ml_impl.so` worked on lightning
 vim configure.wrf
 
 # extract files needed for SBM
@@ -47,22 +55,24 @@ cd run/
 tar -xvzf sbm_files.tar.gz
 cd ..
 
-# set env variable for building the cpp library
-export LIBTORCH="/teamspace/studios/this_studio/libtorch"
-
-# compiles and runs the ensemble test
-# Modify test/ensemble/script.sh to do more/less tests
-./compile
+# compiles the code
+./compile em_les
 ```
 
 ### Running the compiled executable
 
 ```shell
-# required for running ideal.exe and wrf.exe if libtorch 
-# is not LD_LIBRARY_PATH already (e.g. Download using wget instead of package manager)
-export LD_LIBRARY_PATH=/path/to/libtorch/lib:$LD_LIBRARY_PATH
+# Required for running ideal.exe and wrf.exe
+# We should be able to modify flags to avoid needing this but for now, we can keep it
+export LD_LIBRARY_PATH=/path/to/pysbm/pysbm/python:$LD_LIBRARY_PATH
+
+cp test/em_les/ideal.exe test/em_les/wrf.exe test/ensemble
+
+# copy over the artifacts (pytorch model)
+cp -r /path/to/pysbm/artifacts test/ensemble
 
 # run script.sh in enesemble
+# Modify script to do more/less tests
 cd test/ensemble
 ./script.sh
 ```
