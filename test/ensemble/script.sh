@@ -3,8 +3,9 @@
 ens_path=$(pwd)
 wrf_path=${ens_path}/../..
 arch_path=${ens_path}/arch
-n_cases=16
-mpi_procs=24
+n_cases=1
+mpi_procs=1
+set -e 
 
 python gen_ens/gen_ens.py ${ens_path} ${n_cases}
 
@@ -22,7 +23,7 @@ for run_path in $(echo ${ens_path}/run*); do
     ./ideal.exe
 
     nprocs=${mpi_procs} envsubst < template.namelist > namelist.input
-    bsub -n ${mpi_procs} -o mpi.out -e mpi.err -J kangen-ens mpirun ./wrf.exe
+     ./wrf.exe
 
     sleep 40s
     cd ${ens_path}

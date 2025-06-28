@@ -17,12 +17,10 @@
  end_second                          = 00,   00,   00,
  history_interval_m                  = 0,    0,    0,
  history_interval_s                  = 30,   00,   1,
- auxhist3_interval_m                 = 0,    0,    0,
- auxhist3_interval_s                 = 30,   00,   00,
  frames_per_outfile                  = 1000, 1000, 1000,
  frames_per_auxhist3                 = 1000, 1000, 1000,
  restart                             = .false.,
- restart_interval_m                  = 30,
+ restart_interval_m                  = 10,
  io_form_history                     = 2
  io_form_auxhist3                    = 2
  io_form_restart                     = 2
