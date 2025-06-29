@@ -34,47 +34,17 @@ end module module_mp_SBM_Auxiliary
 module module_mp_SBM_Nucleation
 end module module_mp_SBM_Nucleation
 
+include 'module_pysbm_fast_sbm.inc'
+
 MODULE module_mp_fast_sbm
 
   USE, INTRINSIC :: iso_c_binding
-  USE module_pysbm_fast_sbm, ONLY: pysbm
-  USE module_pysbm_fast_sbm_wrapped_ae, ONLY: sbm_ae_init_wrapped, sbm_wrapped_ae
+  use module_pysbm_fast_sbm
+
   IMPLICIT NONE
+
   PRIVATE
   PUBLIC FAST_SBM, FAST_HUCMINIT
-
-  ! Interface to C encoder/decoder (copied from module_pysbm_fast_sbm_wrapped_ae)
-  INTERFACE
-    subroutine c_encoder_(encoded_output, input_tensor, nx, ny, nz, input_channels, encoded_channels) bind(C, name="c_encoder_")
-      import :: c_float, c_int
-      real(c_float), intent(out), dimension(*) :: encoded_output
-      real(c_float), intent(in), dimension(*) :: input_tensor
-      integer(c_int), intent(in) :: nx, ny, nz
-      integer(c_int), intent(in) :: input_channels
-      integer(c_int), intent(in) :: encoded_channels
-    end subroutine c_encoder_
-
-    subroutine c_decoder_(decoded_output, encoded_input, nx, ny, nz, output_channels, encoded_channels) bind(C, name="c_decoder_")
-      import :: c_float, c_int
-      real(c_float), intent(out), dimension(*) :: decoded_output
-      real(c_float), intent(in), dimension(*) :: encoded_input
-      integer(c_int), intent(in) :: nx, ny, nz
-      integer(c_int), intent(in) :: output_channels
-      integer(c_int), intent(in) :: encoded_channels
-    end subroutine c_decoder_
-
-    function load_encoder_from_path(model_path) bind(C, name="load_encoder_from_path")
-        import :: c_char, c_bool
-        character(kind=c_char), intent(in) :: model_path(*)
-        logical(c_bool) :: load_encoder_from_path
-    end function load_encoder_from_path
-
-    function load_decoder_from_path(model_path) bind(C, name="load_decoder_from_path")
-        import :: c_char, c_bool
-        character(kind=c_char), intent(in) :: model_path(*)
-        logical(c_bool) :: load_decoder_from_path
-    end function load_decoder_from_path
-  END INTERFACE
 
 CONTAINS
 
@@ -171,11 +141,16 @@ CONTAINS
     ! (F) Autoencoder Local Variables
     ! ------------------------------
 
-    integer, parameter :: nkr = 33, nkr_encoded = 17, n_chem = 145, &
+    integer, parameter :: nkr = 33, nkr_encoded = 17, &
                               p_ff1i01 =   2, p_ff1i33 =  34,    &
                               p_ff8i01 = 101, p_ff8i43 = 143
     REAL :: ff1(ime - ims + 1, kme - kms + 1, jme - jms + 1, nkr_encoded)
     REAL :: ff1_decoded(ime - ims + 1, kme - kms + 1, jme - jms + 1, nkr)
+    integer :: i, j, k, kr, krr
+    integer :: Nx, Ny, Nz
+    Nx = ime - ims + 1
+    Nz = kme - kms + 1
+    Ny = jme - jms + 1
     
 
     do k = kms, kme
@@ -195,7 +170,7 @@ CONTAINS
 
     ! --- AE workflow: decode -> pysbm -> encode ---
     ! 1. Decode input
-    CALL c_decoder_(ff1_decoded, ff1, Nx, Ny, Nz, nkr, nkr_encoded)
+    CALL c_decoder(ff1_decoded, ff1, Nx, Ny, Nz, nkr, nkr_encoded)
 
     do k = kms, kme
     do j = jms, jme
@@ -245,7 +220,7 @@ CONTAINS
     end do
 
     ! 3. Encode output
-    CALL c_encoder_(ff1, ff1_decoded, Nx, Ny, Nz, nkr, nkr_encoded)
+    CALL c_encoder(ff1, ff1_decoded, Nx, Ny, Nz, nkr, nkr_encoded)
 
     do k = kms, kme
     do j = jms, jme
@@ -271,12 +246,17 @@ CONTAINS
     IMPLICIT NONE
     REAL, INTENT(IN) :: dt
     CHARACTER(len=256) :: input_dir, encoder_path, decoder_path
+    LOGICAL :: success
+
     input_dir = "SBM_input_33"  ! or set as needed
+
+
     CALL PYSBM_HUCMINIT(dt, input_dir)
+    
     encoder_path = "../models/encoder_model_16.pt"
     decoder_path = "../models/encoder_model_16.pt"
-    load_encoder_from_path(encoder_path)
-    load_decoder_from_path(decoder_path)
+    success = load_encoder_from_path(encoder_path)
+    success = load_decoder_from_path(decoder_path)
 
     RETURN
   END SUBROUTINE FAST_HUCMINIT
