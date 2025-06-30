@@ -153,33 +153,32 @@ CONTAINS
     Ny = jme - jms + 1
     
 
-    do k = kms, kme
-    do j = jms, jme
-    do i = ims, ime
+    do k = 1, Nz
+    do j = 1, Ny
+    do i = 1, Nx
         ! drops
         krr = 0
         do kr = p_ff1i01, p_ff1i01 + nkr_encoded -1
             krr = krr + 1
-            ff1(i,k,j,krr) = chem_new(i,k,j,kr)
+            ff1(i,k,j,krr) = chem_new(i + ims - 1, k + kms - 1,j + jms - 1,kr)
         end do
         
     end do
     end do
     end do
 
-
     ! --- AE workflow: decode -> pysbm -> encode ---
     ! 1. Decode input
     CALL c_decoder(ff1_decoded, ff1, Nx, Ny, Nz, nkr, nkr_encoded)
 
-    do k = kms, kme
-    do j = jms, jme
-    do i = ims, ime
+    do k = 1, Nz
+    do j = 1, Ny
+    do i = 1, Nx
         ! drops
         krr = 0
         do kr = p_ff1i01, p_ff1i33
             krr = krr + 1
-            chem_new(i,k,j,kr) = ff1(i,k,j,krr)
+            chem_new(i + ims - 1, k + kms - 1,j + jms - 1,kr) = ff1_decoded(i,k,j,krr)
         end do
         
     end do
@@ -204,17 +203,15 @@ CONTAINS
       &                 rainnc, rainncv, snownc, snowncv,           &
       &                 graupelnc, graupelncv, sr )
 
-
-    do k = kms, kme
-    do j = jms, jme
-    do i = ims, ime
+    do k = 1, Nz
+    do j = 1, Ny
+    do i = 1, Nx
         ! drops
         krr = 0
         do kr = p_ff1i01, p_ff1i33
             krr = krr + 1
-            ff1_decoded(i,k,j,krr) = chem_new(i,k,j,kr)
+            ff1_decoded(i,k,j,krr) = chem_new(i + ims - 1, k + kms - 1,j + jms - 1,kr)
         end do
-        
     end do
     end do
     end do
@@ -222,16 +219,15 @@ CONTAINS
     ! 3. Encode output
     CALL c_encoder(ff1, ff1_decoded, Nx, Ny, Nz, nkr, nkr_encoded)
 
-    do k = kms, kme
-    do j = jms, jme
-    do i = ims, ime
+    do k = 1, Nz
+    do j = 1, Ny
+    do i = 1, Nx
         ! drops
         krr = 0
         do kr = p_ff1i01, p_ff1i01 + nkr_encoded -1
             krr = krr + 1
-            chem_new(i,k,j,kr) = ff1(i,k,j,krr)
+            chem_new(i + ims - 1, k + kms - 1,j + jms - 1,kr) = ff1(i,k,j,krr)
         end do
-        
     end do
     end do
     end do
@@ -243,7 +239,9 @@ CONTAINS
   ! 3) FAST_HUCMINIT => remains no-op
   !----------------------------------------------------------------------
   SUBROUTINE FAST_HUCMINIT(dt)
+    use iso_c_binding
     IMPLICIT NONE
+
     REAL, INTENT(IN) :: dt
     CHARACTER(len=256) :: input_dir, encoder_path, decoder_path
     LOGICAL :: success
@@ -254,9 +252,9 @@ CONTAINS
     CALL PYSBM_HUCMINIT(dt, input_dir)
     
     encoder_path = "../models/encoder_model_16.pt"
-    decoder_path = "../models/encoder_model_16.pt"
-    success = load_encoder_from_path(encoder_path)
-    success = load_decoder_from_path(decoder_path)
+    decoder_path = "../models/decoder_model_16.pt"
+    success = load_encoder_from_path(trim(encoder_path) // c_null_char)
+    success = load_decoder_from_path(trim(decoder_path) // c_null_char)
 
     RETURN
   END SUBROUTINE FAST_HUCMINIT

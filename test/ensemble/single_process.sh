@@ -1,5 +1,5 @@
 #!/bin/bash
-
+set -e
 ens_path=$(pwd)
 wrf_path=${ens_path}/../..
 arch_path=${ens_path}/arch
