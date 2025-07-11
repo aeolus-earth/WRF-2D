@@ -34,14 +34,13 @@ end module module_mp_SBM_Auxiliary
 module module_mp_SBM_Nucleation
 end module module_mp_SBM_Nucleation
 
-include 'module_pysbm_fast_sbm.inc'
-
 MODULE module_mp_fast_sbm
 
   USE, INTRINSIC :: iso_c_binding
-  use module_pysbm_fast_sbm
 
   IMPLICIT NONE
+
+  include 'pysbm_api.inc'
 
   PRIVATE
   PUBLIC FAST_SBM, FAST_HUCMINIT
@@ -141,7 +140,7 @@ CONTAINS
     ! (F) Autoencoder Local Variables
     ! ------------------------------
 
-    integer, parameter :: nkr = 33, nkr_encoded = 17, &
+    integer, parameter :: nkr = 33, nkr_encoded = 34, &
                               p_ff1i01 =   2, p_ff1i33 =  34,    &
                               p_ff8i01 = 101, p_ff8i43 = 143
     REAL :: ff1(ime - ims + 1, kme - kms + 1, jme - jms + 1, nkr_encoded)
@@ -188,7 +187,7 @@ CONTAINS
 
     ! 2. Run core SBM (pysbm)
     ! NOTE: The arguments here must match the actual pysbm signature
-    CALL PYSBM( w,u,v,th_old,                                &
+    CALL c_pysbm_wrapper( w,u,v,th_old,                                &
       &                 chem_new,n_chem,                            &
       &                 itimestep,dt,dx,dy,                         &
       &                 dz8w,rho_phy,p_phy,pi_phy,th_phy,           &
@@ -221,12 +220,26 @@ CONTAINS
     input_dir = "SBM_input_33"  ! or set as needed
 
 
-    CALL PYSBM_HUCMINIT(dt, input_dir)
+    CALL c_pysbm_hucminit_wrapper(dt, input_dir)
     
     encoder_path = "../models/encoder_model_33.pt"
     decoder_path = "../models/decoder_model_33.pt"
+    PRINT *, "Encoder path: ", encoder_path
+    PRINT *, "Decoder path: ", decoder_path
+    
     success = load_encoder_from_path(trim(encoder_path) // c_null_char)
+    if (.not. success) then
+        PRINT *, "ERROR: Failed to load encoder model from path: ", trim(encoder_path)
+    else
+        PRINT *, "SUCCESS: Encoder model loaded successfully"
+    end if
+    
     success = load_decoder_from_path(trim(decoder_path) // c_null_char)
+    if (.not. success) then
+        PRINT *, "ERROR: Failed to load decoder model from path: ", trim(decoder_path)
+    else
+        PRINT *, "SUCCESS: Decoder model loaded successfully"
+    end if
 
     RETURN
   END SUBROUTINE FAST_HUCMINIT

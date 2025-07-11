@@ -33,22 +33,21 @@ The WRF Model is open-source code in the public domain, and its use is unrestric
 ### Setting up WRF
 See this [link](https://forum.mmm.ucar.edu/threads/full-wrf-and-wps-installation-example-gnu.12385/) for help downloading any necessary packages
 
+You will first need to install [pysbm](https://github.com/aeolus-earth/pysbm/tree/ry/kangen-fast-sbm) on the  and get the associated libsbm_ae_all.a file resulting from building pysbm. This file will be located in the pysbm/python directory.
+
+
 ```shell
 # choose the corresponding compiler
 ./configure
 
-# edit the LIB_EXTERNAL variable in configure.wrf to include the c++ library
-# example adding `-L/usr/lib/x86_64-linux-gnu/hdf5/serial $(WRF_SRC_ROOT_DIR)/external/fast_sbm_ml/build/libc_fast_sbm_ml.a \
-# /lib/x86_64-linux-gnu/libstdc++.so.6 -L/teamspace/studios/this_studio/libtorch/lib -ltorch_cpu -lc10`
+# edit the LIB_EXTERNAL variable in configure.wrf to include the compiled static library and necesssary libraries
+# example of use in example_configure 
 vim configure.wrf
 
 # extract files needed for SBM
 cd run/
 tar -xvzf sbm_files.tar.gz
 cd ..
-
-# set env variable for building the cpp library
-export LIBTORCH="/teamspace/studios/this_studio/libtorch"
 
 # compiles and runs the ensemble test
 # Modify test/ensemble/script.sh to do more/less tests
