@@ -45,6 +45,9 @@ MODULE module_mp_fast_sbm
   PRIVATE
   PUBLIC FAST_SBM, FAST_HUCMINIT
 
+  ! Module variable to store the encoded dimension determined at runtime
+  INTEGER, SAVE :: nkr_encoded = -1  ! Initialize to -1 to indicate not set yet
+
 CONTAINS
 
   !----------------------------------------------------------------------
@@ -140,16 +143,25 @@ CONTAINS
     ! (F) Autoencoder Local Variables
     ! ------------------------------
 
-    integer, parameter :: nkr = 33, nkr_encoded = 34, &
+    integer, parameter :: nkr = 33, nkr_encoded_max = 34, &
                               p_ff1i01 =   2, p_ff1i33 =  34,    &
                               p_ff8i01 = 101, p_ff8i43 = 143
-    REAL :: ff1(ime - ims + 1, kme - kms + 1, jme - jms + 1, nkr_encoded)
-    REAL :: ff1_decoded(ime - ims + 1, kme - kms + 1, jme - jms + 1, nkr)
     integer :: i, j, k, kr, krr
     integer :: Nx, Ny, Nz
+
     Nx = ime - ims + 1
     Nz = kme - kms + 1
     Ny = jme - jms + 1
+
+    ! Check if nkr_encoded has been set during initialization
+    if (nkr_encoded <= 0) then
+        PRINT *, "ERROR: nkr_encoded not set. Call FAST_HUCMINIT first."
+        RETURN
+    end if
+
+    ! Automatic arrays - allocated on stack with runtime-determined dimensions
+    REAL :: ff1(Nx, Nz, Ny, nkr_encoded)
+    REAL :: ff1_decoded(Nx, Nz, Ny, nkr)
     
 
     do k = 1, Nz
@@ -216,6 +228,7 @@ CONTAINS
     REAL, INTENT(IN) :: dt
     CHARACTER(len=256) :: input_dir, encoder_path, decoder_path
     LOGICAL :: success
+    integer, parameter :: nkr = 33  ! Input channels for the encoder
 
     input_dir = "SBM_input_33"  ! or set as needed
 
@@ -239,6 +252,19 @@ CONTAINS
         PRINT *, "ERROR: Failed to load decoder model from path: ", trim(decoder_path)
     else
         PRINT *, "SUCCESS: Decoder model loaded successfully"
+    end if
+
+    ! Get the encoded dimension from the loaded encoder model
+    ! Using the new get_encoder_output_channels function
+    CALL get_encoder_output_channels(nkr_encoded, nkr)
+    
+    if (nkr_encoded <= 0 .or. nkr_encoded > 34) then
+        PRINT *, "ERROR: Invalid encoded dimension: ", nkr_encoded
+        PRINT *, "Expected dimension between 1 and 34"
+        nkr_encoded = -1  ! Reset to invalid state
+    else
+        PRINT *, "SUCCESS: Encoded dimension set to: ", nkr_encoded
+        PRINT *, "Input channels: ", nkr, " -> Encoded channels: ", nkr_encoded
     end if
 
     RETURN
