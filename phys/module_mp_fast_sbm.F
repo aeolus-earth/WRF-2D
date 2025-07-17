@@ -47,6 +47,7 @@ MODULE module_mp_fast_sbm
 
   ! Module variable to store the encoded dimension determined at runtime
   INTEGER, SAVE :: nkr_encoded = -1  ! Initialize to -1 to indicate not set yet
+  INTEGER, SAVE :: iteration_counter = 0  ! Counter for iterations
 
 CONTAINS
 
@@ -149,6 +150,10 @@ CONTAINS
     integer :: i, j, k, kr, krr
     integer :: Nx, Ny, Nz
 
+    ! Automatic arrays - allocated on stack with runtime-determined dimensions
+    REAL :: ff1(ime - ims + 1, kme - kms + 1, jme - jms + 1, nkr_encoded)
+    REAL :: ff1_decoded(ime - ims + 1, kme - kms + 1, jme - jms + 1, nkr)
+
     Nx = ime - ims + 1
     Nz = kme - kms + 1
     Ny = jme - jms + 1
@@ -158,10 +163,6 @@ CONTAINS
         PRINT *, "ERROR: nkr_encoded not set. Call FAST_HUCMINIT first."
         RETURN
     end if
-
-    ! Automatic arrays - allocated on stack with runtime-determined dimensions
-    REAL :: ff1(Nx, Nz, Ny, nkr_encoded)
-    REAL :: ff1_decoded(Nx, Nz, Ny, nkr)
     
 
     do k = 1, Nz
@@ -178,10 +179,36 @@ CONTAINS
     end do
     end do
 
+    ! Increment iteration counter
+    iteration_counter = iteration_counter + 1
+
     ! --- AE workflow: decode -> pysbm -> encode ---
     ! 1. Add Reconstruction
+    
+    ! Write original ff1_decoded (before autoencoder) for first 5 iterations
+    if (iteration_counter <= 5) then
+        OPEN(unit=42, file='ff1_before_ae_iter_' // trim(adjustl(int_to_string(iteration_counter))) // '.bin', &
+             form='unformatted', access='stream', status='replace')
+        WRITE(42) Nx, Nz, Ny, nkr  ! Write dimensions first
+        WRITE(42) ff1_decoded       ! Write the original data
+        CLOSE(42)
+        PRINT *, "Written ff1_decoded BEFORE autoencoder to ff1_before_ae_iter_", iteration_counter, &
+                 ".bin with dimensions:", Nx, Nz, Ny, nkr
+    end if
+    
     CALL c_encoder(ff1, ff1_decoded, Nx, Ny, Nz, nkr, nkr_encoded)
     CALL c_decoder(ff1_decoded, ff1, Nx, Ny, Nz, nkr, nkr_encoded)
+
+    ! Write reconstructed ff1_decoded (after autoencoder) for first 5 iterations
+    if (iteration_counter <= 5) then
+        OPEN(unit=43, file='ff1_after_ae_iter_' // trim(adjustl(int_to_string(iteration_counter))) // '.bin', &
+             form='unformatted', access='stream', status='replace')
+        WRITE(43) Nx, Nz, Ny, nkr  ! Write dimensions first
+        WRITE(43) ff1_decoded       ! Write the reconstructed data
+        CLOSE(43)
+        PRINT *, "Written ff1_decoded AFTER autoencoder to ff1_after_ae_iter_", iteration_counter, &
+                 ".bin with dimensions:", Nx, Nz, Ny, nkr
+    end if
 
     do k = 1, Nz
     do j = 1, Ny
@@ -235,8 +262,8 @@ CONTAINS
 
     CALL c_pysbm_hucminit_wrapper(dt, input_dir)
     
-    encoder_path = "../models/encoder_model_33.pt"
-    decoder_path = "../models/decoder_model_33.pt"
+    encoder_path = "encoder_model.pt"
+    decoder_path = "decoder_model.pt"
     PRINT *, "Encoder path: ", encoder_path
     PRINT *, "Decoder path: ", decoder_path
     
@@ -269,6 +296,15 @@ CONTAINS
 
     RETURN
   END SUBROUTINE FAST_HUCMINIT
+
+  !----------------------------------------------------------------------
+  ! Helper function to convert integer to string
+  !----------------------------------------------------------------------
+  FUNCTION int_to_string(i) RESULT(str)
+    INTEGER, INTENT(IN) :: i
+    CHARACTER(len=10) :: str
+    WRITE(str, '(I0)') i
+  END FUNCTION int_to_string
 
 END MODULE module_mp_fast_sbm
 
