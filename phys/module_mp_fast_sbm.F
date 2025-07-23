@@ -196,7 +196,7 @@ CONTAINS
                  ".bin with dimensions:", Nx, Nz, Ny, nkr
     end if
     
-    CALL c_encoder(ff1, ff1_decoded, Nx, Ny, Nz, nkr, nkr_encoded)
+    
     CALL c_decoder(ff1_decoded, ff1, Nx, Ny, Nz, nkr, nkr_encoded)
 
     ! Write reconstructed ff1_decoded (after autoencoder) for first 5 iterations
@@ -243,6 +243,8 @@ CONTAINS
       &                 graupelnc, graupelncv, sr )
 
     RETURN
+
+    CALL c_encoder(ff1, ff1_decoded, Nx, Ny, Nz, nkr, nkr_encoded)
   END SUBROUTINE FAST_SBM
 
   !----------------------------------------------------------------------
@@ -259,22 +261,16 @@ CONTAINS
 
     input_dir = "SBM_input_33"  ! or set as needed
 
-
     CALL c_pysbm_hucminit_wrapper(dt, input_dir)
     
-    encoder_path = "encoder_model.pt"
-    decoder_path = "decoder_model.pt"
-    PRINT *, "Encoder path: ", encoder_path
-    PRINT *, "Decoder path: ", decoder_path
-    
-    success = load_encoder_from_path(trim(encoder_path) // c_null_char)
+    success = c_load_encoder_auto()
     if (.not. success) then
         PRINT *, "ERROR: Failed to load encoder model from path: ", trim(encoder_path)
     else
         PRINT *, "SUCCESS: Encoder model loaded successfully"
     end if
     
-    success = load_decoder_from_path(trim(decoder_path) // c_null_char)
+    success = c_load_decoder_auto()
     if (.not. success) then
         PRINT *, "ERROR: Failed to load decoder model from path: ", trim(decoder_path)
     else
@@ -282,8 +278,7 @@ CONTAINS
     end if
 
     ! Get the encoded dimension from the loaded encoder model
-    ! Using the new get_encoder_output_channels function
-    CALL get_encoder_output_channels(nkr_encoded, nkr)
+    CALL c_get_encoder_channels(nkr_encoded, nkr)
     
     if (nkr_encoded <= 0 .or. nkr_encoded > 34) then
         PRINT *, "ERROR: Invalid encoded dimension: ", nkr_encoded

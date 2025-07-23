@@ -9,6 +9,28 @@
 
 ! Autoencoder C functions
 interface
+    function c_load_encoder_from_path(model_path) bind(C, name="c_load_encoder_from_path")
+        import :: c_char, c_bool
+        character(kind=c_char), intent(in) :: model_path(*)
+        logical(c_bool) :: c_load_encoder_from_path
+    end function c_load_encoder_from_path
+
+    function c_load_decoder_from_path(model_path) bind(C, name="c_load_decoder_from_path")
+        import :: c_char, c_bool
+        character(kind=c_char), intent(in) :: model_path(*)
+        logical(c_bool) :: c_load_decoder_from_path
+    end function c_load_decoder_from_path
+
+    function c_load_encoder_auto() bind(C, name="c_load_encoder_auto")
+        import :: c_bool
+        logical(c_bool) :: c_load_encoder_auto
+    end function c_load_encoder_auto
+
+    function c_load_decoder_auto() bind(C, name="c_load_decoder_auto")
+        import :: c_bool
+        logical(c_bool) :: c_load_decoder_auto
+    end function c_load_decoder_auto
+
     subroutine c_encoder( &
                            encoded_output, input_tensor, &
                            nx, ny, nz, &
@@ -33,24 +55,12 @@ interface
         integer(c_int), intent(in) :: encoded_channels
     end subroutine c_decoder
 
-    subroutine get_encoder_output_channels( &
-                            n_chem_encoded, input_channels) bind(C, name="get_encoder_output_channels_")
+    subroutine c_get_encoder_channels( &
+                            n_chem_encoded, input_channels) bind(C, name="c_get_encoder_channels_")
         import :: c_int
         integer(c_int), intent(out) :: n_chem_encoded
         integer(c_int), intent(in) :: input_channels
-    end subroutine get_encoder_output_channels
-
-    function load_encoder_from_path(model_path) bind(C, name="load_encoder_from_path")
-        import :: c_char, c_bool
-        character(kind=c_char), intent(in) :: model_path(*)
-        logical(c_bool) :: load_encoder_from_path
-    end function load_encoder_from_path
-
-    function load_decoder_from_path(model_path) bind(C, name="load_decoder_from_path")
-        import :: c_char, c_bool
-        character(kind=c_char), intent(in) :: model_path(*)
-        logical(c_bool) :: load_decoder_from_path
-    end function load_decoder_from_path
+    end subroutine c_get_encoder_channels
 end interface
 
 ! ML SBM C functions

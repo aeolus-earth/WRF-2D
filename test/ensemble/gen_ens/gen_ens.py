@@ -59,7 +59,7 @@ def generate_parameters(n_samples=10):
     for k in param: param[k] = param[k][rank]
     return param
 
-mkdir = lambda path: os.mkdir(path) if not os.path.exists(path) else None
+mkdir = lambda path: os.makedirs(path, exist_ok=True)
 def setup_ensemble(ens_path, param):
     n_samples = param['theta_l0'].size
     for i in range(n_samples):

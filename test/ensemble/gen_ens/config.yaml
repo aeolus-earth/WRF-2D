@@ -1,0 +1,8 @@
+dimensions: [2, 4, 8, 16, 33]
+hidden_dim: 256
+num_runs: 6
+output_dir: "/anvil/scratch/x-yyang40/ensemble_results_v6"
+model_dir: "../models"
+visualization_dir: "../visualization"
+wrf_dir: "/home/x-yyang40/kangen-wrf-33-cpy"
+# Model files should be named encoder_model_{dim}_{hidden_dim}.pt, decoder_model_{dim}_{hidden_dim}.pt 
