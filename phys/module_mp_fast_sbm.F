@@ -196,7 +196,7 @@ CONTAINS
                  ".bin with dimensions:", Nx, Nz, Ny, nkr
     end if
     
-    
+    CALL c_encoder(ff1, ff1_decoded, Nx, Ny, Nz, nkr, nkr_encoded)
     CALL c_decoder(ff1_decoded, ff1, Nx, Ny, Nz, nkr, nkr_encoded)
 
     ! Write reconstructed ff1_decoded (after autoencoder) for first 5 iterations
@@ -244,7 +244,7 @@ CONTAINS
 
     RETURN
 
-    CALL c_encoder(ff1, ff1_decoded, Nx, Ny, Nz, nkr, nkr_encoded)
+    
   END SUBROUTINE FAST_SBM
 
   !----------------------------------------------------------------------

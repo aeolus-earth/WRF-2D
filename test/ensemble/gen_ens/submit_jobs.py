@@ -6,15 +6,12 @@ import yaml
 from pathlib import Path
 import subprocess
 
-def main():
-    with open('config.yaml', 'r') as f:
-        config = yaml.safe_load(f)
-
+def main(config):
     wrf_dir = config.get('wrf_dir', None)
     if wrf_dir is None:
         raise ValueError("wrf_dir must be provided in config.yaml")
     wrf_dir = Path(wrf_dir).absolute()
-    submit_script = wrf_dir / 'test' / 'ensemble' / 'submit_single.sh'
+    submit_script = wrf_dir / 'test' / 'ensemble' / 'submit_wrf.sh'
 
     full_simulation_dir = Path(config['output_dir']) / "full_simulation"
     if full_simulation_dir.exists():
@@ -45,4 +42,9 @@ def main():
             raise FileNotFoundError(f"Run directory {run_dir} does not exist. Please check if the full simulation directory exists.")
 
 if __name__ == '__main__':
-    main() 
+    with open('config.yaml', 'r') as f:
+        config = yaml.safe_load(f)
+    main(config) 
+
+
+    sbatch /home/x-yyang40/kangen-wrf-33-cpy/test/ensemble/gen_ens/submit_wrf.sh /anvil/scratch/x-yyang40/ensemble_results_v9/dim_2_hidden_256/run0001 /home/x-yyang40/kangen-wrf-33-cpy

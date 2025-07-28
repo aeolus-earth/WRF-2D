@@ -1,8 +1,18 @@
 dimensions: [2, 4, 8, 16, 33]
 hidden_dim: 256
-num_runs: 6
-output_dir: "/anvil/scratch/x-yyang40/ensemble_results_v6"
+num_runs: 8
+output_dir: "/anvil/scratch/x-yyang40/ensemble_results_v9"
 model_dir: "../models"
 visualization_dir: "../visualization"
 wrf_dir: "/home/x-yyang40/kangen-wrf-33-cpy"
+
+# Visualization settings
+visualization:
+  create_gifs: true
+  create_time_series: true
+  plot_all_runs: true  # If false, only plots run0000
+  output_format: "png"
+  dpi: 150
+  time_range: [0, 60]  # Time range in minutes for plots
+
 # Model files should be named encoder_model_{dim}_{hidden_dim}.pt, decoder_model_{dim}_{hidden_dim}.pt 
