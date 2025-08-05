@@ -20,3 +20,16 @@ configure.wrf*
 __pycache__
 /test/ensemble/run*
 /test/ensemble/*.pkl
+*.gif
+*.png
+build
+figs
+namelist.input.backup.*
+run
+
+# ignore files in directories we do not use
+Registry
+external
+inc
+frame
+tools
