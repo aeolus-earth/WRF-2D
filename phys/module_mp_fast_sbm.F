@@ -41,6 +41,10 @@ MODULE module_mp_fast_sbm
   IMPLICIT NONE
 
   include 'pysbm_api.inc'
+  
+  ! MPI variables
+  INCLUDE 'mpif.h'
+  INTEGER :: mpi_rank, mpi_ierr
 
   PRIVATE
   PUBLIC FAST_SBM, FAST_HUCMINIT
@@ -154,6 +158,12 @@ CONTAINS
     REAL :: ff1(ime - ims + 1, kme - kms + 1, jme - jms + 1, nkr_encoded)
     REAL :: ff1_decoded(ime - ims + 1, kme - kms + 1, jme - jms + 1, nkr)
 
+    ! Timing variables
+    REAL :: start_time, end_time, encoder_time, decoder_time, pysbm_time
+    
+    ! Variable for decoder reload functionality
+    LOGICAL :: success
+
     Nx = ime - ims + 1
     Nz = kme - kms + 1
     Ny = jme - jms + 1
@@ -163,6 +173,9 @@ CONTAINS
         PRINT *, "ERROR: nkr_encoded not set. Call FAST_HUCMINIT first."
         RETURN
     end if
+    
+    ! Get MPI rank
+    CALL MPI_Comm_rank(MPI_COMM_WORLD, mpi_rank, mpi_ierr)
     
 
     do k = 1, Nz
@@ -179,8 +192,19 @@ CONTAINS
     end do
     end do
 
+    if (MOD(iteration_counter, 100) == 0) then
+        PRINT *, "Trying to reload the decoder on n * 100th iteration"
+        success = c_load_decoder_auto()
+        if (.not. success) then
+            PRINT *, "ERROR: Failed to reload decoder model"
+        else
+            PRINT *, "SUCCESS: Decoder model reloaded successfully"
+        end if
+    end if
+
     ! Increment iteration counter
     iteration_counter = iteration_counter + 1
+
 
     ! --- AE workflow: decode -> pysbm -> encode ---
     ! 1. Add Reconstruction
@@ -196,8 +220,17 @@ CONTAINS
                  ".bin with dimensions:", Nx, Nz, Ny, nkr
     end if
     
+    ! Time encoder separately
+    CALL CPU_TIME(start_time)
     CALL c_encoder(ff1, ff1_decoded, Nx, Ny, Nz, nkr, nkr_encoded)
+    CALL CPU_TIME(end_time)
+    encoder_time = end_time - start_time
+    
+    ! Time decoder separately
+    CALL CPU_TIME(start_time)
     CALL c_decoder(ff1_decoded, ff1, Nx, Ny, Nz, nkr, nkr_encoded)
+    CALL CPU_TIME(end_time)
+    decoder_time = end_time - start_time
 
     ! Write reconstructed ff1_decoded (after autoencoder) for first 5 iterations
     if (iteration_counter <= 5) then
@@ -226,6 +259,7 @@ CONTAINS
 
     ! 2. Run core SBM (pysbm)
     ! NOTE: The arguments here must match the actual pysbm signature
+    CALL CPU_TIME(start_time)
     CALL c_pysbm_wrapper( w,u,v,th_old,                                &
       &                 chem_new,n_chem,                            &
       &                 itimestep,dt,dx,dy,                         &
@@ -241,6 +275,16 @@ CONTAINS
       &                 sbm_diagnostics,                            &
       &                 rainnc, rainncv, snownc, snowncv,           &
       &                 graupelnc, graupelncv, sr )
+    CALL CPU_TIME(end_time)
+    pysbm_time = end_time - start_time
+    
+    ! Print timing results
+    PRINT *, "Rank", mpi_rank, "Iteration", iteration_counter, ":"
+    PRINT *, "  Encoder time:", encoder_time, "seconds"
+    PRINT *, "  Decoder time:", decoder_time, "seconds"
+    PRINT *, "  Total autoencoder time:", encoder_time + decoder_time, "seconds"
+    PRINT *, "  PYSBM wrapper time:", pysbm_time, "seconds"
+    PRINT *, "  Total microphysics time:", encoder_time + decoder_time + pysbm_time, "seconds"
 
     RETURN
 

@@ -23,7 +23,7 @@ for run_path in $(echo ${ens_path}/run*); do
     ./ideal.exe
 
     nprocs=${mpi_procs} envsubst < template.namelist > namelist.input
-     ./wrf.exe
+    ./wrf.exe
 
     sleep 40s
     cd ${ens_path}

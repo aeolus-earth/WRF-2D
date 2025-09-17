@@ -1,18 +1,34 @@
-dimensions: [2, 4, 8, 16, 33]
+# Sample configuration file for comprehensive WRF experiments
+# Copy this to config.yaml and modify the paths as needed
+
+# WRF installation directory
+wrf_dir: "/home/x-yyang40/kangen-wrf-33-cpy/"
+
+# Output directory for experiments
+output_dir: "/anvil/scratch/x-yyang40/perturbation_experiments"
+
+# Job submission script
+submit_script: "/home/x-yyang40/kangen-wrf-33-cpy/test/ensemble/submit_wrf_no_namelist.sh"
+
+# Directory containing autoencoder model files
+model_dir: "/home/x-yyang40/models"
+
+# Perturbed inputs configuration
+perturbed_inputs:
+  # Directory containing perturbed WRF input files
+  # This should be relative to the ensemble/gen_ens directory
+  perturbed_dir: "/home/x-yyang40/perturbed_inputs_v2"
+  
+  # Base run directory to copy from
+  base_run: "/anvil/scratch/x-yyang40/run0001_base"
+  
+  # Whether to submit jobs automatically
+  submit_jobs: true
+  
+  # Suffix for output directory names
+  output_suffix: "comprehensive"
+
+# Hidden dimension for autoencoder models (used in partial ensemble)
 hidden_dim: 256
-num_runs: 8
-output_dir: "/anvil/scratch/x-yyang40/ensemble_results_v9"
-model_dir: "../models"
-visualization_dir: "../visualization"
-wrf_dir: "/home/x-yyang40/kangen-wrf-33-cpy"
 
-# Visualization settings
-visualization:
-  create_gifs: true
-  create_time_series: true
-  plot_all_runs: true  # If false, only plots run0000
-  output_format: "png"
-  dpi: 150
-  time_range: [0, 60]  # Time range in minutes for plots
 
-# Model files should be named encoder_model_{dim}_{hidden_dim}.pt, decoder_model_{dim}_{hidden_dim}.pt 

@@ -45,6 +45,3 @@ if __name__ == '__main__':
     with open('config.yaml', 'r') as f:
         config = yaml.safe_load(f)
     main(config) 
-
-
-    sbatch /home/x-yyang40/kangen-wrf-33-cpy/test/ensemble/gen_ens/submit_wrf.sh /anvil/scratch/x-yyang40/ensemble_results_v9/dim_2_hidden_256/run0001 /home/x-yyang40/kangen-wrf-33-cpy

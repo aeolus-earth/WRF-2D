@@ -65,10 +65,17 @@ def plot_wrf_quantities(files, output_path, labels=None, time_range=None):
     if time_range is None:
         time_range = [0, 60]
     
+    # Grid spacing parameters (avoid magic numbers)
+    dx = 40.0  # meters
+    dy = 40.0  # meters
+    cell_area = dx * dy  # m²
+    
     rainnc_avgs = []
-    ql_sums = []
     ql_maxs = []
     liquid_water_sums = []
+    vapor_water_sums = []
+    rainnc_kg = []
+    total_water_overalls = []
 
     for idx, path in enumerate(files):
         print(f"Processing {path}")
@@ -99,8 +106,7 @@ def plot_wrf_quantities(files, output_path, labels=None, time_range=None):
         dz = np.diff(z_stag, axis=1)  # (T, z, y, x)
         
         # Compute sum of liquid water content
-        # (1/alt) * (QCLOUD+QRAIN) * (40*40*dz)
-        cell_area = 40 * 40  # m^2
+        # (1/alt) * (QCLOUD+QRAIN) * (cell_area*dz)
         liquid_water = (1.0 / alt) * ql * (cell_area * dz)  # (T, z, y, x)
         # Sum over z, y, x
         liquid_water_sum = np.sum(liquid_water, axis=(1, 2, 3))  # (T,)
@@ -112,11 +118,22 @@ def plot_wrf_quantities(files, output_path, labels=None, time_range=None):
             rainnc_avg = np.mean(rainnc_avg, axis=1)
         rainnc_avgs.append(rainnc_avg)
 
-        # QCLOUD+QRAIN sum and max
-        ql_sum = np.sum(ql, axis=(1, 3))
-        if ql_sum.ndim == 2:
-            ql_sum = np.mean(ql_sum, axis=1)
-        ql_sums.append(ql_sum)
+        # RAINNC in kg (using 1000 kg/m³ density)
+        # RAINNC is in mm, convert to kg: mm * m² * 1000 kg/m³ / 1000 mm/m = kg
+        rainnc_kg_val = rainnc * cell_area * 1000 / 1000  # (T, y, x) -> kg
+        rainnc_kg_sum = np.sum(rainnc_kg_val, axis=(1, 2))  # (T,)
+        rainnc_kg.append(rainnc_kg_sum)
+
+        # Compute sum of vapor water content (similar to liquid water)
+        # (1/alt) * QVAPOR * (cell_area*dz)
+        vapor_water = (1.0 / alt) * qv * (cell_area * dz)  # (T, z, y, x)
+        # Sum over z, y, x
+        vapor_water_sum = np.sum(vapor_water, axis=(1, 2, 3))  # (T,)
+        vapor_water_sums.append(vapor_water_sum)
+
+        # Total water overall = vapor + liquid + cumulative precip (all kg)
+        total_water_overall = vapor_water_sum + liquid_water_sum + rainnc_kg_sum
+        total_water_overalls.append(total_water_overall)
 
         ql_max = np.max(ql, axis=(1, 3))
         if ql_max.ndim == 2:
@@ -126,14 +143,15 @@ def plot_wrf_quantities(files, output_path, labels=None, time_range=None):
         ds.close()
 
     # Plotting
-    fig, axs = plt.subplots(4, 1, figsize=(10, 16), sharex=True)
+    fig, axs = plt.subplots(5, 1, figsize=(10, 22), sharex=True)
 
     # Use user-specified names for titles and y-labels
     plot_info = [
-        (rainnc_avgs, "Total precipitation (Cumulative)", "water (mm)"),
-        (ql_sums, "Sum of liquid water mixing ratio", "water (kg/kg)"),
+        (vapor_water_sums, "Total vapor water content", "water (kg)"),
         (ql_maxs, "Maximum liquid water mixing ratio", "water (kg/kg)"),
-        (liquid_water_sums, "Total liquid water content", "water (kg)")
+        (liquid_water_sums, "Total liquid water content", "water (kg)"),
+        (rainnc_kg, "Total precipitation", "water (kg)"),
+        (total_water_overalls, "Total water overall", "water (kg)")
     ]
 
     for i, (data, title, ylabel) in enumerate(plot_info):
@@ -144,7 +162,8 @@ def plot_wrf_quantities(files, output_path, labels=None, time_range=None):
             axs[i].plot(times, arr, label=label, linewidth=linewidth)
         axs[i].set_title(title)
         axs[i].set_ylabel(ylabel)
-        axs[i].legend()
+        if i == 0:
+            axs[i].legend()
         axs[i].set_xlim(time_range[0], time_range[1])
 
     fig.align_ylabels()
